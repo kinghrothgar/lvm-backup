@@ -1,0 +1,48 @@
+#!/bin/bash
+SNAP_SIZE=15G
+MOUNT_PATH=/mnt
+
+set -e
+case "$1" in
+    # If line is not a number fail
+    "create")
+        mkdir -p $MOUNT_PATH/${2}_snap
+        path=$(lvs -o lv_path |  grep "${2} *$")
+        path=${path//[[:blank:]]/}
+        output=$(lvcreate --size $SNAP_SIZE --snapshot -n ${2}_snap $path)
+        echo "INFO: $output"
+        fs_type=$(blkid ${path}_snap | sed -nE 's/.*TYPE="([a-zA-Z0-9]+)".*/\1/p')
+        if [[ $fs_type == "xfs" ]]; then
+            mount -o ro,nouuid ${path}_snap $MOUNT_PATH/${2}_snap
+            exit 0
+        fi
+        mount -o ro ${path}_snap $MOUNT_PATH/${2}_snap
+        ;;
+    "remove")
+        set +e
+        path=$(lvs -o lv_path |  grep "${2}_snap *$")
+        path=${path//[[:blank:]]/}
+        set -e
+        if [[ -z $path ]]; then
+            echo "WARN: arg '$2' does not match a lv"
+            exit 1
+        fi
+        path=$(lvs -o lv_path |  grep "${2}_snap *$")
+        path=${path//[[:blank:]]/}
+        if [[ -z $path ]]; then
+            echo "WARN: arg '$2' does not match a lv"
+            exit 1
+        fi
+        snap_percent=$(lvs -o lv_name,snap_percent | grep ${2}_snap | sed -n 's/.*'${2}'_snap\s\+\([0-9.]\+\).*/\1/p')
+        echo "INFO: snap_percent: $snap_percent"
+        set +e
+        umount $MOUNT_PATH/${2}_snap
+        set -e
+        output=$(lvremove -f $path)
+        echo "INFO: $output"
+        ;;
+    *)
+        echo "ERROR: requires argument 'create' or 'remove'"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+DEST=/media/lildata/backups
+FILE_NAME=$(date "+%F-%s").tar.gz
+EXCLUDE_TMP_FILE=/tmp/backup_lvm_ignore_$1
+
+$DIR/snapshot_lvm create $1
+cd /mnt/${1}_snap
+echo "INFO: Finding socket files"
+find . -type s > $EXCLUDE_TMP_FILE
+echo "INFO: Tarring"
+tar --exclude-from=$EXCLUDE_TMP_FILE --xattrs --use-compress-program=pigz -cpf $DEST/$1/$FILE_NAME .
+cd /mnt
+$DIR/snapshot_lvm remove $1

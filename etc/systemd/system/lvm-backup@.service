@@ -1,0 +1,8 @@
+[Unit]
+Description=backup_lvm
+
+[Service]
+Type=oneshot
+ExecStartPre=-/opt/bin/snapshot_lvm remove %i
+ExecStart=/opt/bin/backup_lvm %i
+ExecStopPost=-/opt/bin/snapshot_lvm remove %i
